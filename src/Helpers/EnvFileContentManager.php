@@ -7,6 +7,7 @@ use Innoboxrr\EnvEditor\EnvEditor;
 use Innoboxrr\EnvEditor\Exceptions\EnvException;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Collection;
+use Innoboxrr\EnvEditor\Jobs\OptimizeApplication;
 
 class EnvFileContentManager
 {
@@ -72,6 +73,11 @@ class EnvFileContentManager
             $this->envEditor->getFilesManager()->getFilePath($fileName),
             $content
         );
+
+        if ($result !== false) {
+            // Disparar el Job con un retraso de un minuto
+            OptimizeApplication::dispatch()->delay(now()->addMinute());
+        }
 
         return false !== $result;
     }
