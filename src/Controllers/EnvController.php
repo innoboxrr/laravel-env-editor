@@ -102,7 +102,7 @@ class EnvController extends BaseController
     /**
      * Restore Backup file.
      */
-    public function restoreBackup(string $filename): JsonResponse
+    public function restoreBackup(string $filename = ''): JsonResponse
     {
         $result = $this->envEditor->restoreBackUp($filename);
 
@@ -112,7 +112,7 @@ class EnvController extends BaseController
     /**
      * Delete Backup file.
      */
-    public function destroyBackup(string $filename): JsonResponse
+    public function destroyBackup(string $filename = ''): JsonResponse
     {
         $result = $this->envEditor->deleteBackup($filename);
 
