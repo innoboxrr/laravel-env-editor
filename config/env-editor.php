@@ -22,8 +22,13 @@ return [
         'prefix' => 'env-editor',
         // Routes base name
         'name' => 'env-editor',
-        // Middleware(s) applied on route Group
-        'middleware' => ['web'],
+        // Middleware(s) applied on route Group. Whoever reaches these routes can
+        // read and rewrite the .env, so `auth` is the minimum: add your own admin
+        // check too, e.g. ['web', 'auth', 'admin'] or ['web', 'auth', 'can:manage-env'].
+        'middleware' => ['web', 'auth'],
+        // Ability checked with the Gate before every action (e.g. 'manage-env').
+        // null checks nothing beyond the middleware.
+        'gate' => null,
     ],
 
     /* ------------------------------------------------------------------------------------------------

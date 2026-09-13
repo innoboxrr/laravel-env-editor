@@ -17,6 +17,14 @@ class EnvController extends BaseController
     public function __construct(
         protected EnvEditor $envEditor
     ) {
+        // Leer y reescribir el .env da control total sobre la aplicacion: si
+        // la aplicacion declara una habilidad, se exige en cada accion, despues
+        // del middleware del grupo (un invitado recibe 401 antes que 403).
+        $gate = config('env-editor.route.gate');
+
+        if (is_string($gate) && '' !== $gate) {
+            $this->middleware('can:'.$gate);
+        }
     }
 
     /**
