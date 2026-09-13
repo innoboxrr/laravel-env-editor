@@ -38,6 +38,21 @@ class UiTest extends TestCase
             ->assertSee(trans('env-editor::env-editor.menuTitle'));
     }
 
+    /**
+     * Font Awesome Pro solo carga en los dominios dados de alta en un kit, y la
+     * build de desarrollo de Vue avisa en consola y va mas lenta.
+     */
+    #[Test]
+    public function el_panel_carga_font_awesome_free_y_vue_de_produccion(): void
+    {
+        $this->get(route('env-editor.index'))
+            ->assertOk()
+            ->assertDontSee('pro.fontawesome.com', false)
+            ->assertSee('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css', false)
+            ->assertDontSee('vue/2.5.17/vue.js', false)
+            ->assertSee('https://cdn.jsdelivr.net/npm/vue@2.7.16/dist/vue.min.js', false);
+    }
+
     #[Test]
     public function lista_las_claves_como_json(): void
     {
