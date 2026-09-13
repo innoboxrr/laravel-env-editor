@@ -74,8 +74,11 @@ class EnvFileContentManager
             $content
         );
 
-        if ($result !== false) {
-            // Disparar el Job con un retraso de un minuto
+        // Con la configuracion cacheada el valor nuevo no se lee hasta volver a
+        // cachearla, y para eso esta el job. Sin cache no hace falta, y correr
+        // optimize la activaria: los cambios siguientes al .env, tambien los
+        // hechos a mano, dejarian de verse.
+        if ($result !== false && app()->configurationIsCached()) {
             OptimizeApplication::dispatch()->delay(now()->addMinute());
         }
 

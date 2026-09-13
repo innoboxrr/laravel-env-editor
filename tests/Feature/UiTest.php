@@ -3,7 +3,6 @@
 namespace Innoboxrr\EnvEditor\Tests\Feature;
 
 use Illuminate\Auth\GenericUser;
-use Illuminate\Support\Facades\Bus;
 use Innoboxrr\EnvEditor\Tests\Concerns\UsesTemporaryEnvironment;
 use Innoboxrr\EnvEditor\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
@@ -27,10 +26,6 @@ class UiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        // Guardar el .env despacha OptimizeApplication, y con la cola sync de
-        // los tests correria optimize de verdad y cachearia la configuracion.
-        Bus::fake();
 
         $this->actingAs(new GenericUser(['id' => 1]));
     }
