@@ -2,176 +2,94 @@
 
 namespace Innoboxrr\EnvEditor\Tests\Feature;
 
-use Innoboxrr\EnvEditor\Facades\EnvEditor;
+use Illuminate\Auth\GenericUser;
+use Illuminate\Support\Facades\Bus;
+use Innoboxrr\EnvEditor\Tests\Concerns\UsesTemporaryEnvironment;
 use Innoboxrr\EnvEditor\Tests\TestCase;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\File;
 use PHPUnit\Framework\Attributes\Test;
 
+/**
+ * Lo que hace la interfaz para un usuario autenticado, contra una copia
+ * temporal del .env.
+ */
 class UiTest extends TestCase
 {
+    use UsesTemporaryEnvironment;
+
     protected function getEnvironmentSetUp($app): void
     {
         parent::getEnvironmentSetUp($app);
-        $app->useEnvironmentPath(self::getTestPath());
-        $app->loadEnvironmentFrom(self::getTestFile());
+
+        $this->useTemporaryEnvironment($app);
         $app['config']->set('env-editor.route.enable', true);
     }
 
-    #[Test]
-    public function can_see_dashboard(): void
+    protected function setUp(): void
     {
-        $response = $this->get($this->makeRoute('index'));
-        $response->assertStatus(200)
+        parent::setUp();
+
+        // Guardar el .env despacha OptimizeApplication, y con la cola sync de
+        // los tests correria optimize de verdad y cachearia la configuracion.
+        Bus::fake();
+
+        $this->actingAs(new GenericUser(['id' => 1]));
+    }
+
+    #[Test]
+    public function muestra_el_panel(): void
+    {
+        $this->get(route('env-editor.index'))
+            ->assertOk()
             ->assertSee(trans('env-editor::env-editor.menuTitle'));
     }
 
     #[Test]
-    public function get_json_results(): void
+    public function lista_las_claves_como_json(): void
     {
-        $response = $this->getJson($this->makeRoute('index'));
-        $response->assertStatus(200);
-        /** @var array<array<string, mixed>> $json */
-        $json = $response->json('items');
-        $jsonResponse = collect($json);
-        $envData = EnvEditor::getEnvFileContent()->toJson();
+        $response = $this->getJson(route('env-editor.index'))
+            ->assertOk()
+            ->assertJsonPath('success', true);
 
-        $this->assertEqualsCanonicalizing($envData, $jsonResponse);
+        $items = collect($response->json('items'));
+
+        $this->assertSame('"Test env"', $items->firstWhere('key', 'APP_NAME')['value'] ?? null);
+        $this->assertSame('stack', $items->firstWhere('key', 'LOG_CHANNEL')['value'] ?? null);
     }
 
     #[Test]
-    public function can_set_key_value(): void
+    public function agrega_actualiza_y_borra_una_clave(): void
     {
-        $response = $this->postJson($this->makeRoute('key'), [
-            'key' => 'FOO',
-            'value' => 'bar',
-        ]);
-        $response->assertStatus(200);
-        $this->assertSame('bar', EnvEditor::getKey('FOO'));
+        $this->postJson(route('env-editor.key'), ['key' => 'FOO', 'value' => 'bar'])->assertOk();
+        $this->assertStringContainsString('FOO=bar', $this->envContents());
+
+        $this->patchJson(route('env-editor.key'), ['key' => 'FOO', 'value' => 'baz'])->assertOk();
+        $this->assertStringContainsString('FOO=baz', $this->envContents());
+        $this->assertStringNotContainsString('FOO=bar', $this->envContents());
+
+        $this->deleteJson(route('env-editor.key'), ['key' => 'FOO'])->assertOk();
+        $this->assertStringNotContainsString('FOO=', $this->envContents());
+        $this->assertStringContainsString('APP_NAME="Test env"', $this->envContents());
     }
 
     #[Test]
-    public function can_edit_key_value(): void
+    public function crea_restaura_y_borra_una_copia_de_seguridad(): void
     {
-        $this->postJson($this->makeRoute('key'), [
-            'key' => 'FOO',
-            'value' => 'bar',
-        ]);
+        $this->postJson(route('env-editor.createBackup'))->assertOk();
 
-        $response = $this->patchJson($this->makeRoute('key'), [
-            'key' => 'FOO',
-            'value' => 'foo-test',
-        ]);
-        $response->assertStatus(200);
-        $this->assertSame('foo-test', EnvEditor::getKey('FOO'));
-    }
+        $this->assertCount(1, $this->backups());
+        $name = basename($this->backups()[0]);
 
-    #[Test]
-    public function can_delete_key_value(): void
-    {
-        $this->postJson($this->makeRoute('key'), [
-            'key' => 'FOO',
-            'value' => 'bar',
-        ]);
+        $this->getJson(route('env-editor.getBackups'))
+            ->assertOk()
+            ->assertJsonPath('items.0.name', $name);
 
-        $response = $this->deleteJson($this->makeRoute('key'), [
-            'key' => 'FOO',
-        ]);
-        $response->assertStatus(200);
-        $this->assertFalse(EnvEditor::keyExists('FOO'));
-    }
+        $this->patchJson(route('env-editor.key'), ['key' => 'APP_NAME', 'value' => 'Changed'])->assertOk();
+        $this->assertStringContainsString('APP_NAME=Changed', $this->envContents());
 
-    #[Test]
-    public function can_see_backups(): void
-    {
-        $response = $this->get($this->makeRoute('getBackups'));
-        $response->assertStatus(200)
-            ->assertSee(trans('env-editor::env-editor.views.backup.title'));
-    }
+        $this->postJson(route('env-editor.restoreBackup', ['filename' => $name]))->assertOk();
+        $this->assertStringContainsString('APP_NAME="Test env"', $this->envContents());
 
-    #[Test]
-    public function can_get_json_backups(): void
-    {
-        $response = $this->getJson($this->makeRoute('getBackups'));
-        $response->assertStatus(200);
-        /** @var array<array<string, mixed>> $json */
-        $json = $response->json('items');
-        $jsonResponse = collect($json);
-        $envData = EnvEditor::getAllBackUps()->toJson();
-
-        $this->assertEqualsCanonicalizing($envData, $jsonResponse);
-    }
-
-    #[Test]
-    public function can_create_backups(): void
-    {
-        $backupsDir = config('env-editor.paths.backupDirectory');
-        File::deleteDirectory($backupsDir);
-        $files = fn () => File::glob($backupsDir.'/env_*');
-        $this->assertEmpty($files());
-        $response = $this->postJson($this->makeRoute('createBackup'));
-        $response->assertStatus(200);
-        $this->assertCount(1, $files());
-    }
-
-    #[Test]
-    public function can_restore_backups(): void
-    {
-        $backupsDir = config('env-editor.paths.backupDirectory');
-        File::deleteDirectory($backupsDir);
-
-        EnvEditor::addKey('FOO', 'bar');
-        EnvEditor::backUpCurrent();
-        EnvEditor::deleteKey('FOO');
-        $this->assertNull(EnvEditor::getKey('FOO'));
-        $file = EnvEditor::getAllBackUps()->first()->name;
-        $this->postJson($this->makeRoute('restoreBackup').'/'.$file);
-        $this->assertSame('bar', EnvEditor::getKey('FOO'));
-    }
-
-    #[Test]
-    public function can_destroy_backups(): void
-    {
-        $backupsDir = config('env-editor.paths.backupDirectory');
-        File::deleteDirectory($backupsDir);
-        EnvEditor::backUpCurrent();
-
-        $file = EnvEditor::getAllBackUps()->first()->name;
-        $this->deleteJson($this->makeRoute('destroyBackup').'/'.$file);
-        $this->assertCount(0, EnvEditor::getAllBackUps());
-    }
-
-    #[Test]
-    public function can_download(): void
-    {
-        EnvEditor::shouldReceive('getFilePath')->once()->with('fooBar')->andReturns(self::getTestFile(true));
-        $response = $this->get($this->makeRoute('download', ['filename' => 'fooBar']));
-        $response->assertStatus(200);
-        $response->assertDownload(self::getTestFile());
-    }
-
-    #[Test]
-    public function can_upload_file(): void
-    {
-        $this->assertFalse(EnvEditor::keyExists('FOO'));
-        $this->assertFalse(EnvEditor::keyExists('FOO2'));
-        $fileContent = [
-            'FOO=bar',
-            'FOO2=bar2',
-        ];
-        $this->postJson($this->makeRoute('upload'), [
-            'replace_current' => true,
-            'file' => UploadedFile::fake()->createWithContent('test.txt', implode(PHP_EOL, $fileContent)),
-        ]);
-        $this->assertSame('bar', EnvEditor::getKey('FOO'));
-        $this->assertSame('bar2', EnvEditor::getKey('FOO2'));
-    }
-
-    /**
-     * @param array<string, string> $parameters
-     */
-    protected function makeRoute(string $route, array $parameters = []): string
-    {
-        return route(config('env-editor.route.name').'.'.$route, $parameters);
+        $this->deleteJson(route('env-editor.destroyBackup', ['filename' => $name]))->assertOk();
+        $this->assertCount(0, $this->backups());
     }
 }

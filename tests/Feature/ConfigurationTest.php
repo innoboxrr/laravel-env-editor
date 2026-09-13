@@ -2,36 +2,28 @@
 
 namespace Innoboxrr\EnvEditor\Tests\Feature;
 
-use Innoboxrr\EnvEditor\Tests\TestCase;
-use Illuminate\Config\Repository;
 use Illuminate\Support\Facades\Route;
+use Innoboxrr\EnvEditor\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\Attributes\TestWith;
 
 class ConfigurationTest extends TestCase
 {
+    /**
+     * Instalar el paquete no puede exponer el .env: la interfaz solo existe si
+     * la aplicacion la activa.
+     */
     #[Test]
-    #[TestWith([false])]
-    #[TestWith([true])]
-    public function can_disable_routes(bool $enableRoutes): void
+    public function las_rutas_no_se_registran_por_defecto(): void
     {
-        $this->app->make(Repository::class)->set('env-editor.route.enable', $enableRoutes);
+        $this->assertFalse(config('env-editor.route.enable'));
 
-        $routeNames = [
-            '.index',
-            '.key',
-            '.clearConfigCache',
-            '.files.getBackups',
-            '.files.createBackup',
-            '.files.restoreBackup',
-            '.files.destroyBackup',
-            '.files.download',
-            '.files.upload',
-        ];
+        $names = ['index', 'key', 'clearConfigCache', 'getBackups', 'createBackup', 'restoreBackup', 'destroyBackup', 'download', 'upload'];
 
-        foreach ($routeNames as $name) {
-            $routeName = $this->app['config']['env-editor.route.name'].$name;
-            $this->assertFalse(Route::has($routeName));
+        foreach ($names as $name) {
+            $this->assertFalse(Route::has('env-editor.'.$name), "La ruta env-editor.{$name} no deberia existir.");
         }
+
+        $this->get('/env-editor')->assertNotFound();
+        $this->getJson('/env-editor')->assertNotFound();
     }
 }
