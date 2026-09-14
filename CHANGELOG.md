@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.1
+
+- **Font Awesome y Vue se cargan con `integrity`**, como Bootstrap y jQuery. La
+  interfaz edita los secretos de la aplicación: un archivo alterado en el CDN no
+  se ejecuta. Los hashes se calcularon sobre los archivos que sirven hoy cdnjs y
+  jsDelivr.
+
 ## 2.1.0
 
 Seguridad y correcciones para activar la interfaz en una aplicación Laravel 13
