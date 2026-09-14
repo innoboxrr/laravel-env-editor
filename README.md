@@ -30,18 +30,15 @@ The inspiration for this package was, [Brotzka/laravel-dotenv-editor](https://gi
     * views -> resources/views/vendor/env-editor/..
     * lang -> resources/lang/vendor/env-editor.php
       
-     Or publish specific tags
+     Or publish one tag (`config`, `translations` or `views`). Always pass the provider: a bare `--tag=config` publishes the config of every package that uses that tag.
 
     ```bash
-     //Publish specific tag
-     php artisan vendor:publish --tag=config
-     php artisan vendor:publish --tag=translations
-     php artisan vendor:publish --tag=views
-     
-     //Publish specific Tag from this Vendor
-     php artisan vendor:publish --provider=Innoboxrr\EnvEditor\ServiceProvider --tag=config  
- 
+     php artisan vendor:publish --provider=Innoboxrr\EnvEditor\ServiceProvider --tag=config
+     php artisan vendor:publish --provider=Innoboxrr\EnvEditor\ServiceProvider --tag=translations
+     php artisan vendor:publish --provider=Innoboxrr\EnvEditor\ServiceProvider --tag=views
      ```
+
+Full documentation of the ecosystem, in Spanish and English: <https://innoboxrr.github.io/docs/paquetes/laravel-env-editor>.
      
 ## <a name="available_methods">Available Methods:</a>
 
