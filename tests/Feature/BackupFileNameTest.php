@@ -53,6 +53,34 @@ class BackupFileNameTest extends TestCase
     }
 
     #[Test]
+    public function un_nombre_que_sale_del_directorio_de_copias_se_rechaza(): void
+    {
+        $original = $this->envContents();
+
+        // Un archivo junto al directorio de copias, fuera de el.
+        $outside = $this->temporaryDirectory.DIRECTORY_SEPARATOR.'outside.txt';
+        file_put_contents($outside, 'FOO=outside');
+
+        foreach (['..%5Coutside.txt', '..%5C.env', '..'] as $name) {
+            $this->deleteJson('/env-editor/files/destroy-backup/'.$name)
+                ->assertStatus(400)
+                ->assertJsonPath('success', false);
+
+            $this->postJson('/env-editor/files/restore-backup/'.$name)
+                ->assertStatus(400)
+                ->assertJsonPath('success', false);
+
+            $this->getJson('/env-editor/files/download/'.$name)
+                ->assertStatus(400)
+                ->assertJsonPath('success', false);
+        }
+
+        $this->assertFileExists($outside);
+        $this->assertSame('FOO=outside', file_get_contents($outside));
+        $this->assertSame($original, $this->envContents());
+    }
+
+    #[Test]
     public function agregar_una_clave_que_ya_existe_responde_400_con_mensaje(): void
     {
         $this->postJson(route('env-editor.key'), ['key' => 'APP_NAME', 'value' => 'Other'])
