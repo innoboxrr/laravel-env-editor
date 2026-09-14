@@ -53,6 +53,25 @@ class UiTest extends TestCase
             ->assertSee('https://cdn.jsdelivr.net/npm/vue@2.7.16/dist/vue.min.js', false);
     }
 
+    /**
+     * La interfaz lee y reescribe los secretos: lo que carga de un CDN no se
+     * ejecuta si alguien lo altera allí.
+     */
+    #[Test]
+    public function todo_lo_que_carga_de_un_cdn_lleva_integrity(): void
+    {
+        $html = $this->get(route('env-editor.index'))->assertOk()->getContent();
+
+        preg_match_all('/<(?:script|link)\b[^>]*(?:src|href)="https:\/\/[^"]+"[^>]*>/', $html, $tags);
+
+        $this->assertCount(5, $tags[0]);
+
+        foreach ($tags[0] as $tag) {
+            $this->assertMatchesRegularExpression('/integrity="sha(256|384|512)-[A-Za-z0-9+\/=]+"/', $tag);
+            $this->assertStringContainsString('crossorigin="anonymous"', $tag);
+        }
+    }
+
     #[Test]
     public function lista_las_claves_como_json(): void
     {
