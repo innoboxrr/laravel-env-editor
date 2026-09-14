@@ -110,7 +110,30 @@ The inspiration for this package was, [Brotzka/laravel-dotenv-editor](https://gi
 
 ## <a name="user_interface">User Interface</a>
 
-**Note:** user interface is disabled be default. You can enable it by changing the configuration option `env-editor.route.enable`
+**Note:** user interface is disabled by default. You can enable it by changing the configuration option `env-editor.route.enable`
+
+### Securing the interface
+
+Whoever reaches these routes can read the whole `.env`, including `APP_KEY` and every credential, and rewrite it. The route group uses `['web', 'auth']` by default, so guests are rejected, but **any authenticated user** still gets in. Restrict it to administrators before enabling it, in `config/env-editor.php`:
+
+```php
+'route' => [
+    'enable' => true,
+    // your own admin middleware...
+    'middleware' => ['web', 'auth', 'admin'],
+    // ...and/or a Gate ability checked on every action
+    'gate' => 'manage-env',
+],
+```
+
+```php
+// App\Providers\AppServiceProvider::boot()
+Gate::define('manage-env', fn (User $user): bool => $user->is_admin);
+```
+
+With `gate` set, a guest gets `401` (or the redirect to your login page) and an authenticated user without the ability gets `403`. Laravel redirects guests to the route named `login`; if your app has none, a browser request from a guest fails with "Route [login] not defined" instead of redirecting, while JSON requests still get `401`.
+
+Saving the `.env` schedules `php artisan optimize` a minute later only when the configuration is cached. Without a config cache the new values are read on the next request.
 
 User Interface Contains three Tabs 
 
