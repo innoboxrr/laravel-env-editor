@@ -135,7 +135,7 @@ class EnvController extends BaseController
     public function upload(Request $request): JsonResponse
     {
         $request->validate([
-            'file' => 'required|file|mimetypes:application/octet-stream,text/plain|mimes:txt,text,',
+            'file' => 'required|file|mimetypes:application/octet-stream,text/plain|mimes:txt,text',
         ]);
         $replaceCurrentEnv = filter_var($request->input('replace_current'), FILTER_VALIDATE_BOOLEAN);
 
