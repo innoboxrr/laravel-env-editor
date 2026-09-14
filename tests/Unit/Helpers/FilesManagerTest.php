@@ -143,10 +143,16 @@ class FilesManagerTest extends TestCase
     #[Test]
     public function restore_backup_works_and_returns_bool(): void
     {
-        $this->app->loadEnvironmentFrom('.env.example');
+        // Un .env vacio en un directorio temporal. environmentFile() es solo el
+        // nombre, relativo al directorio de trabajo: escribir ahi dejaba un
+        // .env.example en la raiz del repositorio, y restaurar pisaba el del
+        // esqueleto de Testbench.
+        $directory = sys_get_temp_dir().DIRECTORY_SEPARATOR.'env-editor-restore-'.bin2hex(random_bytes(4));
+        mkdir($directory);
+        $this->app->useEnvironmentPath($directory);
+        $this->app->loadEnvironmentFrom('.env');
         $manager = $this->getEnvFilesManager();
-        // place a dummy env file
-        file_put_contents($this->app->environmentFile(), '');
+        file_put_contents($this->app->environmentFilePath(), '');
 
         $fileName = time().'_test.tmp';
         $content = time().'_dummy';
@@ -157,9 +163,11 @@ class FilesManagerTest extends TestCase
         $this->assertTrue($result);
 
         $currentEnv = $manager->getFilePath();
+        $this->assertSame($directory.DIRECTORY_SEPARATOR.'.env', $currentEnv);
         $this->assertEquals(file_get_contents($currentEnv), $content);
 
         unlink($file);
+        (new Filesystem())->deleteDirectory($directory);
     }
 
     #[Test]
